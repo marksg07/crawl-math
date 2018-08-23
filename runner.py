@@ -1,33 +1,63 @@
 from random import randint
 import numpy as np
-from discrete import uniform_discdist
-symsets = ['d', '+-', 'x', '>']
-syms = ''.join(symsets)
+from discrete import uniform_discdist, BoundedDiscreteDistribution
+symsets = ['d', '*/', '+-', 'x', '>']
+syms = ''.join(symsets) + ')('
 inp = '0x3d25-1d26+1'
 
-def parse_exp(inp):
-    sym_list = []
+def dis_from_num(num):
+    return BoundedDiscreteDistribution({num: 1})
+
+def symlist(inp):
+    sym_list = ['(']
     buf = ''
     for a in inp:
         if a in syms:
-            if '.' in buf:
-                sym_list.append(float(buf))
-            else:
-                sym_list.append(int(buf))
+            #print(a, buf)
+            if buf != '':
+                if '.' in buf:
+                    sym_list.append(dis_from_num(float(buf)))
+                else:
+                    #print(buf)
+                    sym_list.append(dis_from_num(int(buf)))
             sym_list.append(a)
             buf = ''
         else:
             buf += a
-    if '.' in buf:
-        sym_list.append(float(buf))
-    else:
-        sym_list.append(int(buf))
+    if buf != '':
+        if '.' in buf:
+            sym_list.append(dis_from_num(float(buf)))
+        else:
+            sym_list.append(dis_from_num(int(buf)))
+    sym_list.append(')')
+    return sym_list
+
+def solve_parens(sym_list):
+    # i'm lazy, one pass for each parens
+    i = 0
+    last_open = -1
+    while i < len(sym_list):
+        if sym_list[i] == '(':
+            last_open = i
+        elif sym_list[i] == ')':
+            if last_open == -1:
+                raise Exception('Invalid syntax: %s' % (' '.join(sym_list)))
+            newexp = parse_exp(sym_list[last_open+1:i])
+            sym_list = sym_list[:last_open] + [newexp] + sym_list[i+1:]
+            i = -1
+            last_open = -1
+        i += 1
+    assert(len(sym_list) == 1)
+    return sym_list[0]
+    
+
+def parse_exp(sym_list):
     before = sym_list
     grouped = []
     noop = chr(2)
     for symset in symsets:
         i = 0
-        print before, symset
+        #print before, symset
         while i < len(before):
             window = before[i:i+3]
             #print 'window is', window
@@ -48,38 +78,45 @@ def parse_exp(inp):
         #    grouped.append(before[-1])
         #before = grouped
         #grouped = []
-    print before
+    #print before
     assert(len(before) == 1)
     return before[0]
 
-def dice(n, d):
-    '''s = 0
-    for i in range(n):
-        s += randint(1, d)'''
-    s = uniform_discdist(1, d)
-    for i in range(1, n):
-        s += uniform_discdist(1, d)
-    return s
-
 def add(a, b):
-    return a + b
+    #print(a, b)
+    return BoundedDiscreteDistribution({a+b:1})
+
+def dice(n, d):
+    #print(n, d)
+    n_i = BoundedDiscreteDistribution({n:1}).intize()
+    d_i = BoundedDiscreteDistribution({d:1}).intize()
+    #print(str(n_i), str(d_i))
+    def op(a, b):
+        #print(a, b)
+        s = BoundedDiscreteDistribution({0:1})
+        for i in range(a):
+            s = s.apply_op(add, uniform_discdist(1, b))
+        return s.norm_weights_to(2**32)
+    return n_i.apply_op(op, d_i)
 
 def sub(a, b):
-    return a + -b
+    return BoundedDiscreteDistribution({a-b:1})
 
 def gt(a, b):
-    return a > b
+    if a > b:
+        return BoundedDiscreteDistribution({1:1})
+    return BoundedDiscreteDistribution({0:1})
 
 def mx(a, b):
-    if isinstance(a, float) or isinstance(a, int):
-        b.max(a)
-        ret = b
-    else:
-        a.max(b)
-        ret = a
-    return ret
+    return BoundedDiscreteDistribution({max(a,b):1})
 
-operations = {'d': dice, '+': add, '-': sub, 'x': mx, '>': gt}
+def mul(a, b):
+    return BoundedDiscreteDistribution({a*b:1})
+
+def div(a, b):
+    return BoundedDiscreteDistribution({a/float(b):1})
+
+operations = {'d': dice, '+': add, '-': sub, 'x': mx, '>': gt, '*': mul, '/': div}
 
 def evalexp(exp):
     # first pass
@@ -91,7 +128,7 @@ def evalexp(exp):
         p1 = evalexp(p1)
     if isinstance(p2, tuple):
         p2 = evalexp(p2)
-    return operations[op](p1, p2)
+    return p1.apply_op(operations[op], p2)
 
 
 if __name__ == '__main__':
@@ -101,10 +138,12 @@ if __name__ == '__main__':
     #else:
     #    p = int(inp)
     inp = raw_input('Enter expression: ')
-    exp = parse_exp(inp)
-    print exp
-    dist = evalexp(exp)
-    print dist.expected()
+    inp = inp.replace(' ','').replace('\t', '').replace('\n', '').replace('\r', '')
+    exp = solve_parens(symlist(inp))
+    # print exp
+    dist = evalexp(exp).intize()
+    #print(dist)
+    print 'Expected value:', dist.expected()
     dist.graph()
     import matplotlib.pyplot as plt
     plt.show()

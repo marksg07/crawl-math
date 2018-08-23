@@ -3,42 +3,72 @@ import matplotlib.pyplot as plt
 sum_lim = 2**63-1
 div = 2**16
 
+    
+'''
+    def __neg__(self):
+        def op(a, _):
+            return BoundedDiscreteDistribution({-a:1})
+        return self.apply_op(op, BoundedDiscreteDistribution({0:1})
+
+    def __add__(self, other):
+        def op(a, b):
+            return BoundedDiscreteDistribution({a+b:1})
+        return self.apply_op(op, other)
+    
+    def max(self, other):
+        def op(a, b):
+            return BoundedDiscreteDistribution({max(a, b): 1})
+        return self.apply_op(op, other)
+
+    def __gt__(self, other):
+        def op(a, b):
+            if a > b:
+                return BoundedDiscreteDistribution({1:1})
+            else:
+                return BoundedDiscreteDistribution({0:1})
+        return self.apply_op(op, other)
+'''
+
 class BoundedDiscreteDistribution:
     def __init__(self, pmf):
         self.pmf = pmf
         self.sum = sum(pmf.values())
 
-    def __neg__(self):
-        return BoundedDiscreteDistribution({-i:j for i,j in self.pmf.iteritems()})
-        
-    def __add__(self, other):
-        if isinstance(other, int):
-            return BoundedDiscreteDistribution({i+other:j for i,j in self.pmf.iteritems()})
-        p1 = self.pmf
-        p2 = other.pmf
-        newsum = other.sum * self.sum
-        p3 = {}
-        for i,j in p1.iteritems():
-            for i1,j1 in p2.iteritems():
-                if i+i1 in p3:
-                    p3[i+i1] += j * j1
+    def apply_op(self, op, b):
+        a = self # yes, i'm lazy
+        newsum = 0
+        newpmf = {}
+        for i, iw in a.pmf.iteritems():
+            for j, jw in b.pmf.iteritems():
+                op_dis = op(i, j)
+                for k, kw in op_dis.pmf.iteritems():
+                    if k in newpmf:
+                        newpmf[k] += iw*jw*kw
+                    else:
+                        newpmf[k] = iw*jw*kw
+                    newsum += iw*jw*kw
+        while newsum > sum_lim:
+            newsum //= div # approx
+            for k in newpmf.keys():
+                v = newpmf[k]
+                if v < div:
+                    del newpmf[k]
                 else:
-                    p3[i+i1] = j * j1
-        if newsum > sum_lim:
-            for i in p3.keys():
-                if p3[i] < div:
-                    del(p3[i])
-                else:
-                    p3[i] /= div
-        return BoundedDiscreteDistribution(p3)
+                    newpmf[k] //= div
+        return BoundedDiscreteDistribution(newpmf)
 
-    def __gt__(self, i):
-        s = 0
-        for k in self.pmf.keys():
-            if k > i:
-                s += self.pmf[k]
-        n = self.sum - s
-        return BoundedDiscreteDistribution({0: n, 1: s})
+    def intize(self):
+        def op(a, _): # 5.2, f = 0.2 
+            floating = a - int(a)
+            f_prob = int(floating * div)
+            return BoundedDiscreteDistribution({int(a): div - f_prob, int(a)+1: f_prob})
+        return self.apply_op(op, BoundedDiscreteDistribution({0: 1}))
+
+    def graph(self):
+        x = sorted(self.pmf.keys())
+        y = [self.pmf[i] for i in x]
+        plt.plot(x, y)
+        plt.ylim(ymin=0)
 
     def expected(self):
         #print self.sum, sum(self.pmf.values())
@@ -46,32 +76,20 @@ class BoundedDiscreteDistribution:
         for i,j in self.pmf.iteritems():
             s_e += i*j
         return s_e / self.sum
-    
-    def max(self, i):
-        #print i
-        if i not in self.pmf:
-            #print 'haha'
-            self.pmf[i] = 0
-        for k in self.pmf.keys():
-            #print k
-            if k < i:
-                self.pmf[i] += self.pmf[k]
-                del self.pmf[k]
-    
-    def graph(self):
-        x = sorted(self.pmf.keys())
-        y = [self.pmf[i] for i in x]
-        plt.plot(x, y)
 
-    def prob_gt(self, i):
-        s = 0.
-        for k in self.pmf.keys():
-            if k > i:
-                s += self.pmf[k]
-        return s / self.sum
-        
+    def __str__(self):
+        return str(self.pmf)
 
+    def norm_weights_to(self, n):
+        newpmf = {}
+        mult = float(n) / self.sum
+        for k in self.pmf.keys():
+            newpmf[k] = self.pmf[k] * mult
+        return BoundedDiscreteDistribution(newpmf)
+            
 def uniform_discdist(lo, hi):
+    if hi < lo:
+        return BoundedDiscreteDistribution({0:1})
     return BoundedDiscreteDistribution({i:1 for i in range(lo, hi+1)})
 
 if __name__ == '__main__':
