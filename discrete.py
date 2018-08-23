@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 sum_lim = 2**63-1
 div = 2**16
@@ -64,12 +64,12 @@ class BoundedDiscreteDistribution:
             return BoundedDiscreteDistribution({int(a): div - f_prob, int(a)+1: f_prob})
         return self.apply_op(op, BoundedDiscreteDistribution({0: 1}))
 
-    def graph(self):
+    '''def graph(self):
         x = sorted(self.pmf.keys())
         y = [self.pmf[i] for i in x]
         plt.plot(x, y)
         plt.ylim(ymin=0)
-
+'''
     def expected(self):
         #print self.sum, sum(self.pmf.values())
         s_e = 0.
@@ -100,5 +100,5 @@ if __name__ == '__main__':
     kills = final > 29
     print kills.expected()
     print final.expected()
-    final.graph()
+    #final.graph()
     plt.show()

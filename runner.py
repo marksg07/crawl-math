@@ -1,6 +1,7 @@
 from random import randint
-import numpy as np
+#import numpy as np
 from discrete import uniform_discdist, BoundedDiscreteDistribution
+
 symsets = ['d', '*/', '+-', 'x', '>']
 syms = ''.join(symsets) + ')('
 inp = '0x3d25-1d26+1'
@@ -144,9 +145,9 @@ if __name__ == '__main__':
     dist = evalexp(exp).intize()
     #print(dist)
     print 'Expected value:', dist.expected()
-    dist.graph()
-    import matplotlib.pyplot as plt
-    plt.show()
+    #dist.graph()
+    #import matplotlib.pyplot as plt
+    #plt.show()
     '''s = 0
     for i in range(p):
         s += eval_once(exp)
