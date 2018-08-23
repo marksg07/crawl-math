@@ -10,5 +10,5 @@ d: dice roll. Prefix is number of dice, postfix is number of dots on dice.
 
 x: max of prefix and postfix
 
->: pretty self explanatory. Keep in mind that < doesn't exist because I'm lazy. 
+\>: pretty self explanatory. Keep in mind that < doesn't exist because I'm lazy. 
 
